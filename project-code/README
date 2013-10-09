@@ -1,0 +1,12 @@
+This modules provides a logback appender that writes to Graylog2 via GELF over TCP.
+
+To use this module, add the following dependency to your build.sbt/Build.scala file:
+
+"org.graylog2" % "play2-graylog2" % "1.0-SNAPSHOT"
+
+TODO: publish to maven central
+
+In your application.conf you can set a couple of entries to configure the behavior of the appender:
+
+graylog2.appender.hosts=["127.0.0.1:12201"]
+graylog2.appender.queue-size=512
