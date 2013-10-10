@@ -21,6 +21,8 @@ package org.graylog2.logback.appender;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Splitter;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.oio.OioClientSocketChannelFactory;
@@ -32,8 +34,7 @@ import play.Plugin;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.graylog2.logback.appender.GelfTcpAppender.DONT_SEND_TO_GRAYLOG2;
 
@@ -49,6 +50,8 @@ public class Graylog2Plugin extends Plugin {
     private final Integer queueCapacity;
     private ClientBootstrap bootstrap;
     private Graylog2Plugin.ReconnectListener reconnectListener;
+    private ExecutorService reconnectExecutor;
+    private Graylog2Plugin.ReconnectRunnable reconnector;
 
     public Graylog2Plugin(Application app) {
         final Configuration config = app.configuration();
@@ -64,7 +67,12 @@ public class Graylog2Plugin extends Plugin {
         } catch (IllegalArgumentException | NoSuchElementException e) {
             log.error("Malformed graylog2.appender.hosts entry {}. Please specify them as 'host:port'!", entry);
         }
-
+        reconnectExecutor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder()
+                        .setDaemon(true)
+                        .setNameFormat("graylog2-appender-reconnect-%d")
+                        .build());
+        reconnector = new ReconnectRunnable();
     }
 
     @Override
@@ -82,12 +90,7 @@ public class Graylog2Plugin extends Plugin {
                 return Channels.pipeline(handler);
             }
         });
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                channelFuture = reconnect();
-            }
-        }).start();
+        reconnectExecutor.execute(reconnector);
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger rootLogger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
 
@@ -114,6 +117,20 @@ public class Graylog2Plugin extends Plugin {
         if (channelFuture.getChannel()!= null) channelFuture.getChannel().close().awaitUninterruptibly();
     }
 
+    private class ReconnectRunnable implements Runnable {
+        // TODO implement back off strategy here.
+        // this implementation simply sleeps for now
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            channelFuture = reconnect();
+        }
+    }
+
     private class ReconnectListener implements ChannelFutureListener {
         @Override
         public void operationComplete(ChannelFuture future) throws Exception {
@@ -121,10 +138,7 @@ public class Graylog2Plugin extends Plugin {
                 if (log.isDebugEnabled()) {
                     log.debug(DONT_SEND_TO_GRAYLOG2, "Could not connect. Retrying in 500 ms. Exception {}", future.getCause().getMessage());
                 }
-                // TODO implement back-off
-                Thread.sleep(500);
-                // could not connect, let's retry
-                reconnect();
+                reconnectExecutor.execute(reconnector);
             }
         }
     }
