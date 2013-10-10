@@ -41,6 +41,9 @@ import static org.graylog2.logback.appender.GelfTcpAppender.DONT_SEND_TO_GRAYLOG
 @SuppressWarnings("unused")
 public class Graylog2Plugin extends Plugin {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(Graylog2Plugin.class);
+    private final Long connectTimeout;
+    private final Boolean isTcpNoDelay;
+    private final Integer sendBufferSize;
 
     private ChannelFuture channelFuture;
     private GelfTcpAppender gelfAppender;
@@ -52,12 +55,19 @@ public class Graylog2Plugin extends Plugin {
     private Graylog2Plugin.ReconnectListener reconnectListener;
     private ExecutorService reconnectExecutor;
     private Graylog2Plugin.ReconnectRunnable reconnector;
+    private final Long reconnectInterval;
 
     public Graylog2Plugin(Application app) {
         final Configuration config = app.configuration();
+
         queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
+        reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
+        connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
+        isTcpNoDelay = config.getBoolean("graylog2.appender.tcp-nodelay", false);
+        sendBufferSize = config.getInt("graylog2.appender.sendbuffersize", 0);
 
         final String entry = config.getString("graylog2.appender.host", "127.0.0.1:12201");
+
         final Iterable<String> parts = Splitter.on(':').trimResults().omitEmptyStrings().limit(2).split(entry.toString());
         final Iterator<String> it = parts.iterator();
         try {
@@ -90,6 +100,12 @@ public class Graylog2Plugin extends Plugin {
                 return Channels.pipeline(handler);
             }
         });
+        bootstrap.setOption("connectTimeoutMillis", connectTimeout);
+        bootstrap.setOption("tcpNoDelay", isTcpNoDelay);
+        if (sendBufferSize > 0) {
+            bootstrap.setOption("sendBufferSize", sendBufferSize);
+        }
+
         reconnectExecutor.execute(reconnector);
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger rootLogger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
@@ -123,7 +139,7 @@ public class Graylog2Plugin extends Plugin {
         @Override
         public void run() {
             try {
-                Thread.sleep(500);
+                Thread.sleep(reconnectInterval);
             } catch (InterruptedException e) {
                 // ignore
             }
@@ -136,7 +152,7 @@ public class Graylog2Plugin extends Plugin {
         public void operationComplete(ChannelFuture future) throws Exception {
             if (!future.isSuccess()) {
                 if (log.isDebugEnabled()) {
-                    log.debug(DONT_SEND_TO_GRAYLOG2, "Could not connect. Retrying in 500 ms. Exception {}", future.getCause().getMessage());
+                    log.debug(DONT_SEND_TO_GRAYLOG2, "Could not connect. Retrying in {} ms. Exception {}", reconnectInterval ,future.getCause().getMessage());
                 }
                 reconnectExecutor.execute(reconnector);
             }
