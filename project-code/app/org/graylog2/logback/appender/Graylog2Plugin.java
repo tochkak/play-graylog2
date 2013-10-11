@@ -27,8 +27,9 @@ import play.Application;
 import play.Configuration;
 import play.Plugin;
 
-import java.net.*;
-import java.util.Enumeration;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;

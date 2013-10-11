@@ -20,9 +20,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import play.api.Play
 import play.api.libs.json.{JsNumber, JsString, JsObject}
 import ExecutionContext.Implicits.global
-import java.net.{InetAddress, Inet4Address}
-import play.api.libs.iteratee.{Iteratee, Enumeratee}
-import java.util.concurrent.TimeUnit
+import play.api.libs.iteratee.Iteratee
 import scala.concurrent.duration.Duration
 
 class AccessLog extends Filter {
