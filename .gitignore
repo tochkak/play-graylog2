@@ -18,3 +18,5 @@ project-code/.idea/
 project-code/.idea_modules/
 project-code/.settings/
 samples/java-logging/.settings/
+samples/java-logging/.idea/
+samples/java-logging/.idea_modules/
