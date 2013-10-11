@@ -20,6 +20,8 @@ To make use of the AccessLog that sends a structured access log to the configure
 
 For Java:
 
+    import org.graylog2.logback.appender.AccessLog;
+
     @Override
     @SuppressWarnings("unchecked")
     public <T extends EssentialFilter> Class<T>[] filters() {
@@ -29,6 +31,7 @@ For Java:
 For Scala:
 
     import play.api.mvc._
+    import org.graylog2.logback.appender.AccessLog
 
     object Global extends WithFilters(AccessLog) {
         ...
