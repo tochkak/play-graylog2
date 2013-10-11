@@ -8,5 +8,30 @@ TODO: publish to maven central
 
 In your application.conf you can set a couple of entries to configure the behavior of the appender:
 
-graylog2.appender.hosts=["127.0.0.1:12201"]
-graylog2.appender.queue-size=512
+graylog2.appender.host="127.0.0.1:12201"        # the graylog2 server to send logs to (its GELF TCP input)
+graylog2.appender.queue-size=512                # the number of logged, but unsent log messages, stored in memory
+graylog2.appender.reconnect-interval=500ms      # if the connection graylog2 is lost, wait this long until trying a reconnect
+graylog2.appender.connect-timeout=1s            # the TCP connect timeout
+graylog2.appender.tcp-nodelay=false             # optionally disable Nagle's algorithm, improves throughput if you log small messages a lot
+graylog2.appender.sendbuffersize                # if unset, it uses the systems default TCP send buffer size, override to use a different value
+
+
+To make use of the AccessLog that sends a structured access log to the configured graylog2 servers, include the Filter in your Global object:
+
+For Java:
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends EssentialFilter> Class<T>[] filters() {
+        return new Class[] {AccessLog.class};
+    }
+
+For Scala:
+
+    import play.api.mvc._
+
+    object Global extends WithFilters(AccessLog) {
+        ...
+    }
+
+Also consult the Play documentation at http://www.playframework.com/documentation/2.2.0/ScalaHttpFilters if you would like to know more about Filters.
