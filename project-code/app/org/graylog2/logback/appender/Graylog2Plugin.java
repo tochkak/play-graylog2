@@ -27,7 +27,8 @@ import play.Application;
 import play.Configuration;
 import play.Plugin;
 
-import java.net.InetSocketAddress;
+import java.net.*;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
@@ -41,6 +42,7 @@ public class Graylog2Plugin extends Plugin {
     private final Long connectTimeout;
     private final Boolean isTcpNoDelay;
     private final Integer sendBufferSize;
+    private String canonicalHostName;
 
     private ChannelFuture channelFuture;
     private GelfTcpAppender gelfAppender;
@@ -61,8 +63,15 @@ public class Graylog2Plugin extends Plugin {
         reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
         connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
         isTcpNoDelay = config.getBoolean("graylog2.appender.tcp-nodelay", false);
-        sendBufferSize = config.getInt("graylog2.appender.sendbuffersize", 0);
-
+        sendBufferSize = config.getInt("graylog2.appender.sendbuffersize", 0); // causes the socket default to be used
+        try {
+            canonicalHostName = config.getString("graylog2.appender.sourcehost", InetAddress.getLocalHost().getCanonicalHostName());
+        } catch (UnknownHostException e) {
+            canonicalHostName = "localhost";
+            log.error("Unable to resolve canonical localhost name. " +
+                    "Please set it manually via graylog2.appender.sourcehost or fix your lookup service, falling back to {}", canonicalHostName);
+        }
+        // TODO make this a list and dynamically accessible from the application
         final String entry = config.getString("graylog2.appender.host", "127.0.0.1:12201");
 
         final Iterable<String> parts = Splitter.on(':').trimResults().omitEmptyStrings().limit(2).split(entry.toString());
@@ -74,6 +83,7 @@ public class Graylog2Plugin extends Plugin {
         } catch (IllegalArgumentException | NoSuchElementException e) {
             log.error("Malformed graylog2.appender.hosts entry {}. Please specify them as 'host:port'!", entry);
         }
+
         reconnectExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder()
                         .setDaemon(true)
@@ -128,6 +138,14 @@ public class Graylog2Plugin extends Plugin {
         if (gelfAppender != null) gelfAppender.stop();
         if (handler != null) handler.stop();
         if (channelFuture.getChannel()!= null) channelFuture.getChannel().close().awaitUninterruptibly();
+    }
+
+    public GelfAppenderHandler getGelfHandler() {
+        return handler;
+    }
+
+    public String getLocalHostName() {
+        return canonicalHostName;
     }
 
     private class ReconnectRunnable implements Runnable {

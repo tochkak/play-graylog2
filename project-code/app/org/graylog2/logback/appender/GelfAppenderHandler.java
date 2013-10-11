@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import play.libs.Json;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +40,7 @@ public class GelfAppenderHandler extends SimpleChannelUpstreamHandler {
     private static final Logger log = LoggerFactory.getLogger(GelfAppenderHandler.class);
 
     private final Graylog2Plugin graylog2Plugin;
-    private BlockingQueue<ILoggingEvent> queue;
+    private BlockingQueue<String> queue;
     private Channel channel;
     private AtomicBoolean keepRunning = new AtomicBoolean(true);
     private final Thread senderThread;
@@ -57,7 +56,7 @@ public class GelfAppenderHandler extends SimpleChannelUpstreamHandler {
         senderThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                ILoggingEvent event = null;
+                String gelf = null;
                 while (keepRunning.get()) {
                     // wait until we are connected to the graylog2 server before polling log events from the queue
                     lock.lock();
@@ -75,27 +74,20 @@ public class GelfAppenderHandler extends SimpleChannelUpstreamHandler {
                         // we are connected, let's start sending logs
                         try {
                             // if we have a lingering event already, try to send that instead of polling a new one.
-                            if (event == null) {
-                                event = queue.poll(100, TimeUnit.MILLISECONDS);
+                            if (gelf == null) {
+                                gelf = queue.poll(100, TimeUnit.MILLISECONDS);
                             }
                             // if we are still connected, convert LoggingEvent to GELF and send it
                             // but if we aren't connected anymore, we'll have already pulled an event from the queue,
                             // which we keep hanging around in this thread and in the next loop iteration will block until we are connected again.
-                            if (event != null && channel != null && channel.isConnected()) {
-                                final ObjectNode gelf = Json.newObject();
-                                InetSocketAddress localSock = (InetSocketAddress) channel.getLocalAddress();
-                                gelf.put("short_message", event.getFormattedMessage());
-                                gelf.put("host", localSock.getHostName());
-                                gelf.put("timestamp", event.getTimeStamp() / 1000d);
-                                gelf.put("threadname", event.getThreadName());
-                                gelf.put("logger", event.getLoggerName());
-                                gelf.put("loglevel", event.getLevel().toString());
+                            if (gelf != null && channel != null && channel.isConnected()) {
+
                                 // we send nul byte delimited gelf
                                 final ChannelBuffer buffer = ChannelBuffers.wrappedBuffer(
-                                        ChannelBuffers.wrappedBuffer(gelf.toString().getBytes(Charsets.UTF_8)),
+                                        ChannelBuffers.wrappedBuffer(gelf.getBytes(Charsets.UTF_8)),
                                         Delimiters.nulDelimiter()[0]);
                                 channel.write(buffer);
-                                event = null;
+                                gelf = null;
                             }
                         } catch (InterruptedException e) {
                             // ignore, when stopping keepRunning will be set to false outside
@@ -110,11 +102,27 @@ public class GelfAppenderHandler extends SimpleChannelUpstreamHandler {
         senderThread.start();
     }
 
+    private String convertToGelf(ILoggingEvent event) {
+        final ObjectNode gelf = Json.newObject();
+        gelf.put("short_message", event.getFormattedMessage());
+        gelf.put("host", graylog2Plugin.getLocalHostName());
+
+        gelf.put("timestamp", event.getTimeStamp() / 1000d);
+        gelf.put("threadname", event.getThreadName());
+        gelf.put("logger", event.getLoggerName());
+        gelf.put("loglevel", event.getLevel().toString());
+        return gelf.toString();
+    }
+
     public boolean offer(ILoggingEvent event) {
+        return offer(convertToGelf(event));
+    }
+
+    public boolean offer(String gelf) {
         if (log.isTraceEnabled()) {
-            log.trace(DONT_SEND_TO_GRAYLOG2, "Remaining capacity in GELF queue: {} elements.", queue.remainingCapacity());
+            log.trace(DONT_SEND_TO_GRAYLOG2, "Remaining capacity in GELF queue: {} elements. offering: {}", queue.remainingCapacity(), gelf);
         }
-        return queue.offer(event);
+        return queue.offer(gelf);
     }
 
     @Override
