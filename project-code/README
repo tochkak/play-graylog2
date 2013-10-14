@@ -37,4 +37,13 @@ For Scala:
         ...
     }
 
+By default the access log is disabled, because it can potentially generate large amounts of data and could affect the throughput of your
+application in a non-trivial manner, because it is a request Filter.
+
+To use it, set the following in your application.conf:
+
+graylog2.appender.send-access-log=true
+
+
+
 Also consult the Play documentation at http://www.playframework.com/documentation/2.2.0/ScalaHttpFilters if you would like to know more about Filters.

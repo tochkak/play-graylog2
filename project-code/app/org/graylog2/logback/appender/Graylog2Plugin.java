@@ -43,6 +43,7 @@ public class Graylog2Plugin extends Plugin {
     private final Long connectTimeout;
     private final Boolean isTcpNoDelay;
     private final Integer sendBufferSize;
+    private final Boolean accessLogEnabled;
     private String canonicalHostName;
 
     private ChannelFuture channelFuture;
@@ -60,6 +61,7 @@ public class Graylog2Plugin extends Plugin {
     public Graylog2Plugin(Application app) {
         final Configuration config = app.configuration();
 
+        accessLogEnabled = config.getBoolean("graylog2.appender.send-access-log", false);
         queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
         reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
         connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
@@ -149,6 +151,9 @@ public class Graylog2Plugin extends Plugin {
         return canonicalHostName;
     }
 
+    public boolean isAccessLogEnabled() {
+        return accessLogEnabled;
+    }
     private class ReconnectRunnable implements Runnable {
         // TODO implement back off strategy here.
         // this implementation simply sleeps for now

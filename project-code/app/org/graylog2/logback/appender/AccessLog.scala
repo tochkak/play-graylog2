@@ -27,9 +27,14 @@ class AccessLog extends Filter {
   // this will exist, because otherwise we can't use this class anyway
   val plugin: Graylog2Plugin = Play.current.plugin(classOf[Graylog2Plugin]).get
   val logger: GelfAppenderHandler = plugin.getGelfHandler
+
   def apply(next: (RequestHeader) => Future[SimpleResult])(rh: RequestHeader): Future[SimpleResult] = {
-    val startTime: Long = System.currentTimeMillis()
-    next(rh).map(result => logRequest(startTime, rh, result))
+    if (plugin.isAccessLogEnabled) {
+      val startTime: Long = System.currentTimeMillis()
+      next(rh).map(result => logRequest(startTime, rh, result))
+    } else {
+      next(rh)
+    }
   }
 
 
