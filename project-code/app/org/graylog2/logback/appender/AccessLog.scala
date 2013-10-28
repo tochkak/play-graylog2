@@ -16,12 +16,11 @@
 package org.graylog2.logback.appender
 
 import play.api.mvc.{SimpleResult, RequestHeader, Filter}
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import play.api.Play
 import play.api.libs.json.{JsNumber, JsString, JsObject}
 import ExecutionContext.Implicits.global
-import play.api.libs.iteratee.Iteratee
-import scala.concurrent.duration.Duration
+import play.api.libs.iteratee.{Enumeratee, Enumerator}
 
 class AccessLog extends Filter {
   // this will exist, because otherwise we can't use this class anyway
@@ -41,31 +40,38 @@ class AccessLog extends Filter {
   def logRequest(startTime: Long, request: RequestHeader, response: SimpleResult): SimpleResult = {
     val endTime: Long = System.currentTimeMillis()
 
-    // TODO this can't be right.
-    val bytes: Array[Byte] = Await.result(response.body |>>> Iteratee.consume[Array[Byte]](), Duration.Inf)
-    val responseLength: Int = bytes.length
+    // adapt the original response.body Enumerator and then return new SimpleResult.
+    // there seems to be no way of doing parallel iterator or I'm just too dump for it.
+    // all other proposed solutions either broke assets completely, or just didn't finish collecting.
+    var responseLength: Int = 0
+    val enumerator: Enumerator[Array[Byte]] = response.body through Enumeratee.map[Array[Byte]] {
+      chunk =>
+        responseLength = responseLength + chunk.size
+        chunk
+    }
+    val doner: Enumerator[Array[Byte]] = enumerator.onDoneEnumerating {
+      // TODO add apache log format parser to have the fields configurable
+      val gelfString = JsObject(List(
+        // standard gelf fields
+        "host" -> JsString(plugin.getLocalHostName),
+        "short_message" -> JsString(request.method + " " + request.uri),
+        "timestamp" -> JsNumber(startTime / 1000D),
+        // request related fields
+        "method" -> JsString(request.method),
+        "url" -> JsString(request.uri),
+        "version" -> JsString(request.version),
+        "remote_host" -> JsString(request.remoteAddress),
+        "referer" -> JsString(request.headers.get("Referer").getOrElse("")),
+        "user_agent" -> JsString(request.headers.get("User-Agent").getOrElse("")),
+        // response related fields
+        "status" -> JsNumber(response.header.status),
+        "response_bytes" -> JsNumber(responseLength),
+        "duration" -> JsNumber(endTime - startTime)
+      )).toString()
 
-    // TODO add apache log format parser to have the fields configurable
-    val gelfString = JsObject(List(
-      // standard gelf fields
-      "host" -> JsString(plugin.getLocalHostName),
-      "short_message" -> JsString(request.method + " " + request.uri),
-      "timestamp" -> JsNumber(startTime / 1000D),
-      // request related fields
-      "method" -> JsString(request.method),
-      "url" -> JsString(request.uri),
-      "version" -> JsString(request.version),
-      "remote_host" -> JsString(request.remoteAddress),
-      "referer" -> JsString(request.headers.get("Referer").getOrElse("")),
-      "user_agent" -> JsString(request.headers.get("User-Agent").getOrElse("")),
-      // response related fields
-      "status" -> JsNumber(response.header.status),
-      "response_bytes" -> JsNumber(responseLength),
-      "duration" -> JsNumber(endTime - startTime)
-    )).toString()
+      logger.offer(gelfString)
+    }
 
-    logger.offer(gelfString)
-
-    response
+    SimpleResult(response.header, doner, response.connection)
   }
 }
