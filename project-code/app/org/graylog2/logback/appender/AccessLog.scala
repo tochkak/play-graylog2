@@ -41,7 +41,7 @@ class AccessLog extends Filter {
     val endTime: Long = System.currentTimeMillis()
 
     // adapt the original response.body Enumerator and then return new SimpleResult.
-    // there seems to be no way of doing parallel iterator or I'm just too dump for it.
+    // there seems to be no way of doing parallel iteration or I'm just too dumb for it.
     // all other proposed solutions either broke assets completely, or just didn't finish collecting.
     var responseLength: Int = 0
     val enumerator: Enumerator[Array[Byte]] = response.body through Enumeratee.map[Array[Byte]] {
