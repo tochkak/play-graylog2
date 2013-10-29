@@ -44,9 +44,11 @@ class AccessLog extends Filter {
     // there seems to be no way of doing parallel iteration or I'm just too dumb for it.
     // all other proposed solutions either broke assets completely, or just didn't finish collecting.
     var responseLength: Int = 0
+    var chunks: Int = 0
     val enumerator: Enumerator[Array[Byte]] = response.body through Enumeratee.map[Array[Byte]] {
       chunk =>
         responseLength = responseLength + chunk.size
+        chunks += 1
         chunk
     }
     val doner: Enumerator[Array[Byte]] = enumerator.onDoneEnumerating {
@@ -66,7 +68,8 @@ class AccessLog extends Filter {
         // response related fields
         "status" -> JsNumber(response.header.status),
         "response_bytes" -> JsNumber(responseLength),
-        "duration" -> JsNumber(endTime - startTime)
+        "duration" -> JsNumber(endTime - startTime),
+        "chunks" -> JsNumber(chunks)
       )).toString()
 
       logger.offer(gelfString)
