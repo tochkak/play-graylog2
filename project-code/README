@@ -31,10 +31,10 @@ For Java:
 For Scala:
 
     import play.api.mvc._
-    import org.graylog2.logback.appender.AccessLog
+    import org.graylog2.logback.appender.ScalaAccessLog
 
-    object Global extends WithFilters(AccessLog) {
-        ...
+    object Global extends WithFilters(ScalaAccessLog) {
+        / * optionally implement methods from trait GlobalSettings here ... */
     }
 
 By default the access log is disabled, because it can potentially generate large amounts of data and could affect the throughput of your
