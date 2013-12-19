@@ -23,9 +23,13 @@ import ExecutionContext.Implicits.global
 import play.api.libs.iteratee.{Enumeratee, Enumerator}
 
 class AccessLog extends Filter {
+  def apply(f: (RequestHeader) => Future[SimpleResult])(rh: RequestHeader): Future[SimpleResult] = ScalaAccessLog.apply(f)(rh)
+}
+
+object ScalaAccessLog extends Filter {
   // this will exist, because otherwise we can't use this class anyway
-  val plugin: Graylog2Plugin = Play.current.plugin(classOf[Graylog2Plugin]).get
-  val logger: GelfAppenderHandler = plugin.getGelfHandler
+  lazy val plugin: Graylog2Plugin = Play.current.plugin(classOf[Graylog2Plugin]).get
+  lazy val logger: GelfAppenderHandler = plugin.getGelfHandler
 
   def apply(next: (RequestHeader) => Future[SimpleResult])(rh: RequestHeader): Future[SimpleResult] = {
     if (plugin.isAccessLogEnabled) {
