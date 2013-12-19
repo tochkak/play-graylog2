@@ -20,3 +20,6 @@ project-code/.settings/
 samples/java-logging/.settings/
 samples/java-logging/.idea/
 samples/java-logging/.idea_modules/
+samples/scala-logging/.settings/
+samples/scala-logging/.idea/
+samples/scala-logging/.idea_modules/
