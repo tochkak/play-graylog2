@@ -2,7 +2,7 @@ This modules provides a logback appender that writes to Graylog2 via GELF over T
 
 To use this module, add the following dependency to your build.sbt/Build.scala file:
 
-"org.graylog2" % "play2-graylog2" % "1.1"
+    "org.graylog2" % "play2-graylog2" % "1.1"
 
 TODO: publish to maven central
 
