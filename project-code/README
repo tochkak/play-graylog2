@@ -44,6 +44,8 @@ To use it, set the following in your application.conf:
 
 graylog2.appender.send-access-log=true
 
+Finally, enable the plugin in your `conf/play.plugins`:
 
+    10000:org.graylog2.logback.appender.Graylog2Plugin
 
 Also consult the Play documentation at http://www.playframework.com/documentation/2.2.0/ScalaHttpFilters if you would like to know more about Filters.
