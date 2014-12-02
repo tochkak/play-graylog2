@@ -29,4 +29,10 @@ pomExtra := (
     <url>https://github.com/Graylog2/play2-graylog2</url>
     <connection>scm:git:https://github.com/Graylog2/play2-graylog2.git</connection>
     <developerConnection>scm:git:git@github.com:Graylog2/play2-graylog2.git</developerConnection>
-  </scm>)
+  </scm>
+    <developers>
+      <developer>
+        <id>kroepke</id>
+        <name>Kay Roepke</name>
+      </developer>
+    </developers>)
