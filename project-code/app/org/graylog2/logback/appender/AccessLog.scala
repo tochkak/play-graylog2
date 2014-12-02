@@ -15,7 +15,7 @@
  */
 package org.graylog2.logback.appender
 
-import play.api.mvc.{SimpleResult, RequestHeader, Filter}
+import play.api.mvc.{Result, RequestHeader, Filter}
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.Play
 import play.api.libs.json.{JsNumber, JsString, JsObject}
@@ -23,7 +23,7 @@ import ExecutionContext.Implicits.global
 import play.api.libs.iteratee.{Enumeratee, Enumerator}
 
 class AccessLog extends Filter {
-  def apply(f: (RequestHeader) => Future[SimpleResult])(rh: RequestHeader): Future[SimpleResult] = ScalaAccessLog.apply(f)(rh)
+  def apply(f: (RequestHeader) => Future[Result])(rh: RequestHeader): Future[Result] = ScalaAccessLog.apply(f)(rh)
 }
 
 object ScalaAccessLog extends Filter {
@@ -31,7 +31,7 @@ object ScalaAccessLog extends Filter {
   lazy val plugin: Graylog2Plugin = Play.current.plugin(classOf[Graylog2Plugin]).get
   lazy val logger: GelfAppenderHandler = plugin.getGelfHandler
 
-  def apply(next: (RequestHeader) => Future[SimpleResult])(rh: RequestHeader): Future[SimpleResult] = {
+  def apply(next: (RequestHeader) => Future[Result])(rh: RequestHeader): Future[Result] = {
     if (plugin.isAccessLogEnabled) {
       val startTime: Long = System.currentTimeMillis()
       next(rh).map(result => logRequest(startTime, rh, result))
@@ -41,7 +41,7 @@ object ScalaAccessLog extends Filter {
   }
 
 
-  def logRequest(startTime: Long, request: RequestHeader, response: SimpleResult): SimpleResult = {
+  def logRequest(startTime: Long, request: RequestHeader, response: Result): Result = {
     val endTime: Long = System.currentTimeMillis()
 
     // adapt the original response.body Enumerator and then return new SimpleResult.
@@ -79,6 +79,6 @@ object ScalaAccessLog extends Filter {
       logger.offer(gelfString)
     }
 
-    SimpleResult(response.header, doner, response.connection)
+    Result(response.header, doner, response.connection)
   }
 }
