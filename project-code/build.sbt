@@ -2,7 +2,7 @@ name := "play2-graylog2"
 
 organization := "org.graylog2"
 
-version := "1.2"
+version := "1.2.1"
 
 lazy val root = (project in file(".")).enablePlugins(PlayJava)
 
