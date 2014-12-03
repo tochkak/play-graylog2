@@ -6,6 +6,8 @@ version := "1.2"
 
 lazy val root = (project in file(".")).enablePlugins(PlayJava)
 
+javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+
 libraryDependencies ++= Seq(
 )
 
