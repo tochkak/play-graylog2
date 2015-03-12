@@ -15,6 +15,7 @@
  */
 package org.graylog2.logback.appender
 
+import org.graylog2.gelfclient.GelfMessage
 import play.api.mvc.{Result, RequestHeader, Filter}
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.Play
@@ -29,7 +30,7 @@ class AccessLog extends Filter {
 object ScalaAccessLog extends Filter {
   // this will exist, because otherwise we can't use this class anyway
   lazy val plugin: Graylog2Plugin = Play.current.plugin(classOf[Graylog2Plugin]).get
-  lazy val logger: GelfAppenderHandler = plugin.getGelfHandler
+  lazy val logger = plugin.getGelfAppender
 
   def apply(next: (RequestHeader) => Future[Result])(rh: RequestHeader): Future[Result] = {
     if (plugin.isAccessLogEnabled) {
@@ -57,26 +58,30 @@ object ScalaAccessLog extends Filter {
     }
     val doner: Enumerator[Array[Byte]] = enumerator.onDoneEnumerating {
       // TODO add apache log format parser to have the fields configurable
-      val gelfString = JsObject(List(
+      val fields : Map[String, Any] = Map(
         // standard gelf fields
-        "host" -> JsString(plugin.getLocalHostName),
-        "short_message" -> JsString(request.method + " " + request.uri),
-        "timestamp" -> JsNumber(startTime / 1000D),
+        "host" -> plugin.getLocalHostName,
+        "short_message" -> (request.method + " " + request.uri),
+        "timestamp" -> startTime / 1000D,
         // request related fields
-        "method" -> JsString(request.method),
-        "url" -> JsString(request.uri),
-        "version" -> JsString(request.version),
-        "remote_host" -> JsString(request.remoteAddress),
-        "referer" -> JsString(request.headers.get("Referer").getOrElse("")),
-        "user_agent" -> JsString(request.headers.get("User-Agent").getOrElse("")),
+        "method" -> request.method,
+        "url" -> request.uri,
+        "version" -> request.version,
+        "remote_host" -> request.remoteAddress,
+        "referer" -> request.headers.get("Referer").getOrElse(""),
+        "user_agent" -> request.headers.get("User-Agent").getOrElse(""),
         // response related fields
-        "status" -> JsNumber(response.header.status),
-        "response_bytes" -> JsNumber(responseLength),
-        "duration" -> JsNumber(endTime - startTime),
-        "chunks" -> JsNumber(chunks)
-      )).toString()
+        "status" -> response.header.status,
+        "response_bytes" -> responseLength,
+        "duration" -> (endTime - startTime),
+        "chunks" -> chunks
+      )
 
-      logger.offer(gelfString)
+      val gelfMessage : GelfMessage = new GelfMessage(request.method + " " + request.uri, plugin.getLocalHostName)
+
+      fields.foreach(entry => gelfMessage.addAdditionalField(entry._1, entry._2))
+
+      logger.append(gelfMessage)
     }
 
     Result(response.header, doner, response.connection)

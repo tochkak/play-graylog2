@@ -17,11 +17,11 @@ package org.graylog2.logback.appender;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import com.google.common.base.Splitter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.jboss.netty.bootstrap.ClientBootstrap;
+import com.google.common.net.HostAndPort;
+import org.graylog2.gelfclient.GelfConfiguration;
+import org.graylog2.gelfclient.GelfTransports;
+import org.graylog2.gelfclient.transport.GelfTransport;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.socket.oio.OioClientSocketChannelFactory;
 import org.slf4j.LoggerFactory;
 import play.Application;
 import play.Configuration;
@@ -30,12 +30,7 @@ import play.Plugin;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import static org.graylog2.logback.appender.GelfTcpAppender.DONT_SEND_TO_GRAYLOG2;
 
 @SuppressWarnings("unused")
 public class Graylog2Plugin extends Plugin {
@@ -47,16 +42,14 @@ public class Graylog2Plugin extends Plugin {
     private String canonicalHostName;
 
     private ChannelFuture channelFuture;
-    private GelfTcpAppender gelfAppender;
-    private GelfAppenderHandler handler;
+    private GelfclientAppender gelfAppender;
 
     private InetSocketAddress graylog2ServerAddress;
     private final Integer queueCapacity;
-    private ClientBootstrap bootstrap;
-    private Graylog2Plugin.ReconnectListener reconnectListener;
-    private ExecutorService reconnectExecutor;
-    private Graylog2Plugin.ReconnectRunnable reconnector;
     private final Long reconnectInterval;
+
+    private final GelfTransport transport;
+    private final Logger rootLogger;
 
     public Graylog2Plugin(Application app) {
         final Configuration config = app.configuration();
@@ -75,108 +68,51 @@ public class Graylog2Plugin extends Plugin {
                     "Please set it manually via graylog2.appender.sourcehost or fix your lookup service, falling back to {}", canonicalHostName);
         }
         // TODO make this a list and dynamically accessible from the application
-        final String entry = config.getString("graylog2.appender.host", "127.0.0.1:12201");
+        final String hostString = config.getString("graylog2.appender.host", "127.0.0.1:12201");
+        final String protocol = config.getString("graylog2.appender.protocol", "tcp");
 
-        final Iterable<String> parts = Splitter.on(':').trimResults().omitEmptyStrings().limit(2).split(entry.toString());
-        final Iterator<String> it = parts.iterator();
-        try {
-            String host = it.next();
-            String port = it.next();
-            graylog2ServerAddress = new InetSocketAddress(host, Integer.valueOf(port));
-        } catch (IllegalArgumentException | NoSuchElementException e) {
-            log.error("Malformed graylog2.appender.hosts entry {}. Please specify them as 'host:port'!", entry);
-        }
+        final HostAndPort hostAndPort = HostAndPort.fromString(hostString);
 
-        reconnectExecutor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder()
-                        .setDaemon(true)
-                        .setNameFormat("graylog2-appender-reconnect-%d")
-                        .build());
-        reconnector = new ReconnectRunnable();
+        final GelfTransports gelfTransport = GelfTransports.valueOf(protocol.toUpperCase());
+
+        final GelfConfiguration gelfConfiguration = new GelfConfiguration(hostAndPort.getHostText(), hostAndPort.getPort())
+                .transport(gelfTransport)
+                .reconnectDelay(reconnectInterval.intValue())
+                .queueSize(queueCapacity)
+                .connectTimeout(connectTimeout.intValue())
+                .tcpNoDelay(isTcpNoDelay)
+                .sendBufferSize(sendBufferSize);
+
+        this.transport = GelfTransports.create(gelfConfiguration);
+
+        final LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+        rootLogger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+
+        gelfAppender = new GelfclientAppender(transport, getLocalHostName());
+        gelfAppender.setContext(lc);
     }
 
     @Override
     public void onStart() {
-        bootstrap = new ClientBootstrap(
-                new OioClientSocketChannelFactory(
-                        Executors.newCachedThreadPool()));
-
-        reconnectListener = new ReconnectListener();
-
-        handler = new GelfAppenderHandler(this, queueCapacity);
-
-        bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(handler);
-            }
-        });
-        bootstrap.setOption("connectTimeoutMillis", connectTimeout);
-        bootstrap.setOption("tcpNoDelay", isTcpNoDelay);
-        if (sendBufferSize > 0) {
-            bootstrap.setOption("sendBufferSize", sendBufferSize);
-        }
-
-        reconnectExecutor.execute(reconnector);
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        Logger rootLogger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
-
-        gelfAppender = new GelfTcpAppender(handler);
-        gelfAppender.setContext(lc);
         gelfAppender.start();
-
         rootLogger.addAppender(gelfAppender);
-    }
-
-    public ChannelFuture reconnect() {
-        if (log.isDebugEnabled()) {
-            log.debug(DONT_SEND_TO_GRAYLOG2, "Reconnecting to graylog2 at {}", graylog2ServerAddress);
-        }
-        channelFuture = bootstrap.connect(graylog2ServerAddress);
-        channelFuture.addListener(reconnectListener);
-        return channelFuture;
     }
 
     @Override
     public void onStop() {
-        if (gelfAppender != null) gelfAppender.stop();
-        if (handler != null) handler.stop();
-        if (channelFuture.getChannel()!= null) channelFuture.getChannel().close().awaitUninterruptibly();
-    }
-
-    public GelfAppenderHandler getGelfHandler() {
-        return handler;
+        rootLogger.detachAppender(gelfAppender);
+        transport.stop();
     }
 
     public String getLocalHostName() {
         return canonicalHostName;
     }
 
-    public boolean isAccessLogEnabled() {
-        return accessLogEnabled;
-    }
-    private class ReconnectRunnable implements Runnable {
-        // TODO implement back off strategy here.
-        // this implementation simply sleeps for now
-        @Override
-        public void run() {
-            try {
-                Thread.sleep(reconnectInterval);
-            } catch (InterruptedException e) {
-                // ignore
-            }
-            channelFuture = reconnect();
-        }
+    public GelfclientAppender getGelfAppender() {
+        return gelfAppender;
     }
 
-    private class ReconnectListener implements ChannelFutureListener {
-        @Override
-        public void operationComplete(ChannelFuture future) throws Exception {
-            if (!future.isSuccess()) {
-                if (log.isDebugEnabled()) {
-                    log.debug(DONT_SEND_TO_GRAYLOG2, "Could not connect. Retrying in {} ms. Exception {}", reconnectInterval ,future.getCause().getMessage());
-                }
-                reconnectExecutor.execute(reconnector);
-            }
-        }
+    public boolean isAccessLogEnabled() {
+        return accessLogEnabled;
     }
 }
