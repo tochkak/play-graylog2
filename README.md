@@ -1,3 +1,7 @@
+# Caution
+
+*This repository is deprecated and not in use anymore. It is kept for historical purposes, but no PRs will be merged, no issues will be worked on.*
+
 play2-graylog2
 ==============
 
