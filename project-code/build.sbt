@@ -1,19 +1,22 @@
 name := "play2-graylog2"
 
-organization := "org.graylog2"
+scalaVersion := "2.11.8"
 
-version := "1.3.0-SNAPSHOT"
+organization := "ru.tochkak"
 
-lazy val root = (project in file(".")).enablePlugins(PlayJava)
+version := "1.0.0"
 
-javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+lazy val root = (project in file(".")).enablePlugins(PlayScala)
+
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 libraryDependencies ++= Seq(
-  "org.graylog2" % "gelfclient" % "1.2.0"
+  "org.graylog2" % "gelfclient" % "1.4.1"
 )
 
-// Settings for publishing to Maven Central, see http://www.scala-sbt.org/0.13/docs/Using-Sonatype.html
 publishMavenStyle := true
+
+publishArtifact in Test := false
 
 publishTo := {
   val nexus = "https://oss.sonatype.org/"
@@ -23,19 +26,28 @@ publishTo := {
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
-licenses := Seq("Apache 2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0"))
+pomIncludeRepository := {
+  _ => false
+}
 
-homepage := Some(url("https://github.com/Graylog2/play2-graylog2"))
-
-pomExtra := (
-  <scm>
-    <url>https://github.com/Graylog2/play2-graylog2</url>
-    <connection>scm:git:https://github.com/Graylog2/play2-graylog2.git</connection>
-    <developerConnection>scm:git:git@github.com:Graylog2/play2-graylog2.git</developerConnection>
-  </scm>
+pomExtra := {
+  <url>https://github.com/Panshin/play2-graylog2</url>
+    <licenses>
+      <license>
+        <name>Apache 2</name>
+        <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+        <distribution>repo</distribution>
+      </license>
+    </licenses>
+    <scm>
+      <url>git@github.com:Panshin/play2-graylog2.git</url>
+      <connection>scm:git:git@github.com:Panshin/play2-graylog2.git</connection>
+    </scm>
     <developers>
       <developer>
-        <id>kroepke</id>
-        <name>Kay Roepke</name>
+        <id>panshin</id>
+        <name>Gleb Panshin</name>
+        <url>http://panshin.pro</url>
       </developer>
-    </developers>)
+    </developers>
+}

@@ -1,4 +1,4 @@
-package org.graylog2.logback.appender;
+package ru.tochkak.logback.graylog2;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -8,11 +8,11 @@ import org.graylog2.gelfclient.GelfMessageBuilder;
 import org.graylog2.gelfclient.GelfMessageLevel;
 import org.graylog2.gelfclient.transport.GelfTransport;
 
-public class GelfclientAppender extends AppenderBase<ILoggingEvent> {
+public class GelfClientAppender extends AppenderBase<ILoggingEvent> {
     private final GelfTransport transport;
     private final String hostname;
 
-    public GelfclientAppender(GelfTransport transport, String hostname) {
+    public GelfClientAppender(GelfTransport transport, String hostname) {
         this.transport = transport;
         this.hostname = hostname;
     }
