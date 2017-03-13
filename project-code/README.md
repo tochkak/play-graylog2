@@ -1,10 +1,8 @@
-This modules provides a logback appender that writes to Graylog2 via GELF over TCP.
+This modules provides a logback appender that writes to Graylog2 via GELF over TCP for Play 2.5+.
 
-To use this module, add the following dependency to your build.sbt/Build.scala file:
+To use this module, add the following dependency to your build.sbt file:
 
-    "org.graylog2" % "play2-graylog2" % "1.2.1"
-
-TODO: publish to maven central
+    ("ru.tochkak" %% "play2-graylog2" % "1.0.0").excludeAll(ExclusionRule(organization = "io.netty"))
 
 In your application.conf you can set a couple of entries to configure the behavior of the appender:
 
@@ -18,37 +16,24 @@ In your application.conf you can set a couple of entries to configure the behavi
 
 To make use of the AccessLog that sends a structured access log to the configured graylog2 servers, include the Filter in your Global object:
 
-For Java:
-
-    import org.graylog2.logback.appender.AccessLog;
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T extends EssentialFilter> Class<T>[] filters() {
-        return new Class[] {AccessLog.class};
-    }
-
 For Scala:
 
-    import play.api.mvc._
-    import org.graylog2.logback.appender.ScalaAccessLog
+    import javax.inject.Inject
 
-    object Global extends WithFilters(ScalaAccessLog) {
-        / * optionally implement methods from trait GlobalSettings here ... */
+    import play.api.http.HttpFilters
+    import ru.tochkak.logback.graylog2.Graylog2Filter
+
+    class Filters @Inject()(
+      graylog2: Graylog2Filter
+    ) extends HttpFilters {
+      val filters = Seq(graylog2)
     }
 
-By default the access log is disabled, because it can potentially generate large amounts of data and could affect the throughput of your
-application in a non-trivial manner, because it is a request Filter.
+Finally, enable the module in your `conf/application.conf`:
 
-To use it, set the following in your application.conf:
+    play.modules.enabled += "ru.tochkak.logback.graylog2.Graylog2Module"
 
-    graylog2.appender.send-access-log=true
-
-Finally, enable the plugin in your `conf/play.plugins`:
-
-    10000:org.graylog2.logback.appender.Graylog2Plugin
-
-Also consult the Play documentation at http://www.playframework.com/documentation/2.2.0/ScalaHttpFilters if you would like to know more about Filters.
+Also consult the Play documentation at https://www.playframework.com/documentation/2.5.x/ScalaHttpFilters if you would like to know more about Filters.
 
 
 License
