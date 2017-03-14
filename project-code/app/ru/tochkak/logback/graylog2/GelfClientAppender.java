@@ -30,6 +30,20 @@ public class GelfClientAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
+    public void append(String shortMessage, AccessLogMessage accessLogMessage) {
+
+        GelfMessage gelfMessage = new GelfMessageBuilder(shortMessage, hostname)
+                .additionalFields(accessLogMessage.getFields())
+                .level(GelfMessageLevel.INFO)
+                .build();
+        try {
+            transport.send(gelfMessage);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     private GelfMessage convertToGelfMessage(ILoggingEvent event) {
         return new GelfMessageBuilder(event.getFormattedMessage(), hostname)
                 .timestamp(event.getTimeStamp() / 1000d)
@@ -40,7 +54,7 @@ public class GelfClientAppender extends AppenderBase<ILoggingEvent> {
     }
 
     private GelfMessageLevel toGelfMessageLevel(Level level) {
-        switch(level.toInt()) {
+        switch (level.toInt()) {
             case Level.ERROR_INT:
                 return GelfMessageLevel.ERROR;
             case Level.WARN_INT:

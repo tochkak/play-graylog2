@@ -13,12 +13,17 @@ import javax.inject.Inject;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-
-public interface Graylog2Component { }
+@SuppressWarnings("unused")
+public interface Graylog2Component {
+    GelfClientAppender getGelfClientAppender();
+    Boolean isAccessLogEnabled();
+}
 
 class Graylog2Impl implements Graylog2Component {
 
     private GelfClientAppender gelfClientAppender;
+
+    private Boolean accessLogEnabled;
 
     private GelfConfiguration getGelfConfiguration(Configuration config) {
         final Integer queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
@@ -55,6 +60,8 @@ class Graylog2Impl implements Graylog2Component {
             canonicalHostName = "unknown";
         }
 
+        accessLogEnabled = config.getBoolean("graylog2.appender.access-log", false);
+
         final GelfConfiguration gelfConfiguration = getGelfConfiguration(config);
 
         GelfTransport transport = GelfTransports.create(gelfConfiguration);
@@ -71,6 +78,9 @@ class Graylog2Impl implements Graylog2Component {
         rootLogger.addAppender(gelfClientAppender);
     }
 
+    public Boolean isAccessLogEnabled() {
+        return accessLogEnabled;
+    }
     @SuppressWarnings("unused")
     public GelfClientAppender getGelfClientAppender() {
         return gelfClientAppender;

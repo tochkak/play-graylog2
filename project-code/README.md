@@ -13,6 +13,7 @@ In your application.conf you can set a couple of entries to configure the behavi
     graylog2.appender.connect-timeout=1s            # the TCP connect timeout
     graylog2.appender.tcp-nodelay=false             # optionally disable Nagle's algorithm, improves throughput if you log small messages a lot
     graylog2.appender.sendbuffersize                # if unset, it uses the systems default TCP send buffer size, override to use a different value
+    graylog2.appender.access-log=true               # if set, send access log
 
 To make use of the AccessLog that sends a structured access log to the configured graylog2 servers, include the Filter in your Global object:
 
