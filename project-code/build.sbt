@@ -31,7 +31,7 @@ pomIncludeRepository := {
 }
 
 pomExtra := {
-  <url>https://github.com/Panshin/play2-graylog2</url>
+  <url>https://github.com/tochkak/play-graylog2</url>
     <licenses>
       <license>
         <name>Apache 2</name>
@@ -40,8 +40,8 @@ pomExtra := {
       </license>
     </licenses>
     <scm>
-      <url>git@github.com:Panshin/play2-graylog2.git</url>
-      <connection>scm:git:git@github.com:Panshin/play2-graylog2.git</connection>
+      <url>git@github.com:tochkak/play-graylog2.git</url>
+      <connection>scm:git:git@github.com:tochkak/play-graylog2.git</connection>
     </scm>
     <developers>
       <developer>
