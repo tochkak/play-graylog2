@@ -6,6 +6,20 @@ import akka.stream.Materializer
 import play.api.mvc.{Filter, RequestHeader, Result}
 
 import scala.concurrent.{ExecutionContext, Future}
+import com.google.inject.ImplementedBy
+
+import scala.collection.JavaConverters
+
+class GrayLog2ParamsExtractorDefault extends GrayLog2ParamsExtractor {
+  def extract(requestHeader: RequestHeader, response: Result): Map[String, String] = {
+    Map[String, String]()
+  }
+}
+
+@ImplementedBy(classOf[GrayLog2ParamsExtractorDefault])
+trait GrayLog2ParamsExtractor {
+  def extract(requestHeader: RequestHeader, response: Result): Map[String, String]
+}
 
 case class GelfMessage(
   timestamp: Int,
@@ -20,7 +34,8 @@ case class GelfMessage(
 class Graylog2Filter @Inject()(
   implicit val mat: Materializer,
   ec: ExecutionContext,
-  graylog2: Graylog2Component
+  graylog2: Graylog2Component,
+  extractor: GrayLog2ParamsExtractor
 ) extends Filter {
 
   def apply(nextFilter: RequestHeader => Future[Result])
@@ -47,7 +62,9 @@ class Graylog2Filter @Inject()(
             requestTime
           )
 
-          graylogAppender.append(shortMessage, accessLogMessage)
+          graylogAppender.append(
+            shortMessage, accessLogMessage, JavaConverters.mapAsJavaMap(extractor.extract(requestHeader, result))
+          )
           result
         }
       }

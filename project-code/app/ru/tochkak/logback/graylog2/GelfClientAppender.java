@@ -8,6 +8,8 @@ import org.graylog2.gelfclient.GelfMessageBuilder;
 import org.graylog2.gelfclient.GelfMessageLevel;
 import org.graylog2.gelfclient.transport.GelfTransport;
 
+import java.util.Map;
+
 public class GelfClientAppender extends AppenderBase<ILoggingEvent> {
     private final GelfTransport transport;
     private final String hostname;
@@ -30,10 +32,13 @@ public class GelfClientAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
-    public void append(String shortMessage, AccessLogMessage accessLogMessage) {
+    public void append(
+            String shortMessage, AccessLogMessage accessLogMessage,
+            Map<String, Object> additionalFields) {
 
         GelfMessage gelfMessage = new GelfMessageBuilder(shortMessage, hostname)
                 .additionalFields(accessLogMessage.getFields())
+                .additionalFields(additionalFields)
                 .level(GelfMessageLevel.INFO)
                 .build();
         try {
