@@ -1,16 +1,17 @@
 name := "play2-graylog2"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.2"
 
 organization := "ru.tochkak"
 
-version := "1.1.0"
+version := "1.3.0"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint:deprecation")
 
 libraryDependencies ++= Seq(
+  guice,
   "org.graylog2" % "gelfclient" % "1.4.1"
 )
 

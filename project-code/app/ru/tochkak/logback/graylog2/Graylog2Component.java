@@ -39,7 +39,7 @@ class Graylog2Impl implements Graylog2Component {
 
         final Integer sendBufferSize = config.getInt("graylog2.appender.sendbuffersize", 0); // causes the socket default to be used
 
-        return new GelfConfiguration(hostAndPort.getHostText(), hostAndPort.getPort())
+        return new GelfConfiguration(hostAndPort.getHost(), hostAndPort.getPort())
                 .transport(gelfTransport)
                 .reconnectDelay(reconnectInterval.intValue())
                 .queueSize(queueCapacity)
