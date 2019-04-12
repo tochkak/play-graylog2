@@ -3,15 +3,15 @@ package ru.tochkak.logback.graylog2;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import com.google.common.net.HostAndPort;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import org.graylog2.gelfclient.GelfConfiguration;
 import org.graylog2.gelfclient.GelfTransports;
 import org.graylog2.gelfclient.transport.GelfTransport;
 import org.slf4j.LoggerFactory;
-import play.Configuration;
 
 import javax.inject.Inject;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
 public interface Graylog2Component {
@@ -25,19 +25,19 @@ class Graylog2Impl implements Graylog2Component {
 
     private Boolean accessLogEnabled;
 
-    private GelfConfiguration getGelfConfiguration(Configuration config) {
-        final Integer queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
-        final Long reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
-        final Long connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
-        final Boolean isTcpNoDelay = config.getBoolean("graylog2.appender.tcp-nodelay", false);
-        final String hostString = config.getString("graylog2.appender.host", "127.0.0.1:12201");
-        final String protocol = config.getString("graylog2.appender.protocol", "udp");
+    private GelfConfiguration getGelfConfiguration(Config config) {
+        final int queueCapacity = config.getInt("graylog2.appender.queue-size");
+        final Long reconnectInterval = config.getDuration("graylog2.appender.reconnect-interval", TimeUnit.MILLISECONDS);
+        final Long connectTimeout = config.getDuration("graylog2.appender.connect-timeout", TimeUnit.MILLISECONDS);
+        final boolean isTcpNoDelay = config.getBoolean("graylog2.appender.tcp-nodelay");
+        final String hostString = config.getString("graylog2.appender.host");
+        final String protocol = config.getString("graylog2.appender.protocol");
 
         final HostAndPort hostAndPort = HostAndPort.fromString(hostString);
 
         GelfTransports gelfTransport = GelfTransports.valueOf(protocol.toUpperCase());
 
-        final Integer sendBufferSize = config.getInt("graylog2.appender.sendbuffersize", 0); // causes the socket default to be used
+        final Integer sendBufferSize = config.getInt("graylog2.appender.sendbuffersize"); // causes the socket default to be used
 
         return new GelfConfiguration(hostAndPort.getHost(), hostAndPort.getPort())
                 .transport(gelfTransport)
@@ -49,18 +49,15 @@ class Graylog2Impl implements Graylog2Component {
     }
 
     @Inject
-    public Graylog2Impl(Configuration config) {
+    public Graylog2Impl(Config config) {
         String canonicalHostName;
         try {
-            canonicalHostName = config.getString(
-                    "graylog2.appender.sourcehost",
-                    InetAddress.getLocalHost().getCanonicalHostName()
-            );
-        } catch (UnknownHostException e) {
+            canonicalHostName = config.getString("graylog2.appender.sourcehost");
+        } catch (ConfigException.Missing e) {
             canonicalHostName = "unknown";
         }
 
-        accessLogEnabled = config.getBoolean("graylog2.appender.access-log", false);
+        accessLogEnabled = config.getBoolean("graylog2.appender.access-log");
 
         final GelfConfiguration gelfConfiguration = getGelfConfiguration(config);
 
