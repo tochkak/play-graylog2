@@ -4,7 +4,7 @@ scalaVersion := "2.12.8"
 
 organization := "ru.tochkak"
 
-version := "1.3.0"
+version := "1.4.0"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
