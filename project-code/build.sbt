@@ -1,6 +1,6 @@
 name := "play2-graylog2"
 
-scalaVersion := "2.12.2"
+scalaVersion := "2.12.8"
 
 organization := "ru.tochkak"
 
@@ -12,7 +12,7 @@ javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint:deprecation")
 
 libraryDependencies ++= Seq(
   guice,
-  "org.graylog2" % "gelfclient" % "1.4.1"
+  "org.graylog2" % "gelfclient" % "1.4.4"
 )
 
 publishMavenStyle := true
